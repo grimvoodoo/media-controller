@@ -108,7 +108,7 @@ async fn main() -> std::io::Result<()> {
 
 /// Read the token from an env var
 fn get_api_token() -> String {
-    env::var("MEDIA_CONTROL_API_TOKEN").expect("must set API_TOKEN")
+    env::var("MEDIA_CONTROL_API_TOKEN").expect("must set MEDIA_CONTROL_API_TOKEN")
 }
 
 /// This middleware will run *before* every handler.
