@@ -24,14 +24,6 @@ jobs:
         with:
           fetch-depth: 0   # fetch all history for semver
 
-      - name: Bump version and create tag
-        id: tag
-        uses: anothrNick/github-tag-action@v1.37.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          default_bump: patch
-          version_prefix: "v"
-
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
