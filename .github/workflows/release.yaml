@@ -9,6 +9,9 @@ on:
     types: [closed]
     branches:
       - main
+  push:
+    branches:
+      feature/*
 
 jobs:
   tag-and-release:
