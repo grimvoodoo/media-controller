@@ -22,7 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout\@v3
         with:
-        fetch-depth: 0   # fetch all history for semver
+          fetch-depth: 0   # fetch all history for semver
 
       - name: Bump version and create tag
         id: tag
