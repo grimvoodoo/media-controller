@@ -1,7 +1,13 @@
-use actix_web::{App, HttpResponse, HttpServer, Responder, web};
+use actix_web::body::BoxBody;
+use actix_web::dev::{ServiceRequest, ServiceResponse};
+use actix_web::error::ErrorUnauthorized;
+use actix_web::http::header;
+use actix_web::middleware::{Next, from_fn};
+use actix_web::{App, Error, HttpResponse, HttpServer, Responder, web};
 use mpris::{PlaybackStatus, Player, PlayerFinder};
 use serde::Serialize;
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
+use std::env;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -29,6 +35,9 @@ struct Status {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let token = get_api_token();
+    let token_data = web::Data::new(token);
+
     // On Linux/macOS we don't need an HWND; on Windows you'd supply it here.
     #[cfg(not(target_os = "windows"))]
     let hwnd = None;
@@ -61,16 +70,26 @@ async fn main() -> std::io::Result<()> {
     controls.set_playback(initial_pb.clone()).unwrap();
 
     // 3) Wrap everything in Arcs+Mutex for sharing across Actix handlers
-    let state = web::Data::new(AppState {
+    // let state = web::Data::new(AppState {
+    //     controls: Arc::new(Mutex::new(controls)),
+    //     copy_meta: Arc::new(Mutex::new(initial_meta)),
+    //     copy_playback: Arc::new(Mutex::new(initial_pb)),
+    // });
+
+    let shared_state = web::Data::new(AppState {
         controls: Arc::new(Mutex::new(controls)),
         copy_meta: Arc::new(Mutex::new(initial_meta)),
         copy_playback: Arc::new(Mutex::new(initial_pb)),
     });
 
+    // let token_data = web::Data::new(token.clone());
+
     // 4) Spin up the HTTP server
     HttpServer::new(move || {
         App::new()
-            .app_data(state.clone())
+            .app_data(token_data.clone())
+            .wrap(from_fn(auth_middleware))
+            .app_data(shared_state.clone())
             .route("/play", web::post().to(play))
             .route("/pause", web::post().to(pause))
             .route("/toggle", web::post().to(toggle))
@@ -85,6 +104,40 @@ async fn main() -> std::io::Result<()> {
     .bind(("0.0.0.0", 8080))?
     .run()
     .await
+}
+
+/// Read the token from an env var
+fn get_api_token() -> String {
+    env::var("MEDIA_CONTROL_API_TOKEN").expect("must set API_TOKEN")
+}
+
+/// This middleware will run *before* every handler.
+async fn auth_middleware(
+    req: ServiceRequest,
+    next: Next<BoxBody>, // <-- note BoxBody here
+) -> Result<ServiceResponse<BoxBody>, Error> {
+    // Grab expected token from app data
+    let expected = req
+        .app_data::<web::Data<String>>()
+        .map(|d| d.get_ref().clone())
+        .unwrap_or_default();
+
+    // Check for `Authorization: Bearer <token>`
+    let authorized = req
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|h| h.to_str().ok())
+        .map(|val| val == format!("Bearer {}", expected))
+        .unwrap_or(false);
+
+    if authorized {
+        // forward to the actual handler
+        let res: ServiceResponse<BoxBody> = next.call(req).await?;
+        Ok(res)
+    } else {
+        // short-circuit with 401
+        Err(ErrorUnauthorized("Invalid or missing API token"))
+    }
 }
 
 /// Helper: find the *currently active* MPRIS player, if any.
