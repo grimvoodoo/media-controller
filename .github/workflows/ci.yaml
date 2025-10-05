@@ -278,10 +278,17 @@ jobs:
             libxtst-dev \
             libxkbcommon-dev
 
+      - name: Update rustup
+        run: rustup self update
+
       - name: Install MSRV Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.70"  # From Cargo.toml rust-version
+          components: rustfmt, clippy
+
+      - name: Set toolchain override
+        run: rustup override set 1.70
 
       - name: Cache cargo dependencies
         uses: actions/cache@v4
