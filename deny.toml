@@ -1,0 +1,115 @@
+# cargo-deny configuration for supply chain security
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# Exclude dev-dependencies from the graph
+all-features = false
+no-default-features = false
+
+[output]
+feature-depth = 1
+
+[advisories]
+# The path where the advisory database is cloned/fetched into
+db-path = "~/.cargo/advisory-db"
+# The url(s) of the advisory databases to use
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# The lint level for security vulnerabilities
+vulnerability = "deny"
+# The lint level for unmaintained crates
+unmaintained = "warn"
+# The lint level for crates that have been yanked from their source registry
+yanked = "warn"
+# The lint level for crates with security notices
+notice = "warn"
+# A list of advisory IDs to ignore
+ignore = [
+    # "RUSTSEC-0000-0000",
+]
+
+[licenses]
+# The confidence threshold for detecting a license from a license text.
+confidence-threshold = 0.8
+# List of explicitly allowed licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "MPL-2.0",
+]
+# List of explicitly disallowed licenses
+deny = [
+    "GPL-2.0",
+    "GPL-3.0",
+    "AGPL-1.0",
+    "AGPL-3.0",
+]
+# Lint level for when multiple licenses are detected for a crate
+copyleft = "deny"
+# Allow 1 or more licenses on a per-crate basis, so that particular licenses aren't accepted for every possible crate as with the normal allow list
+exceptions = [
+    # Each entry is the crate and version constraint, and its the license
+    # { allow = ["Zlib"], name = "adler32", version = "*" },
+]
+
+[[licenses.clarify]]
+# The name of the crate the clarification applies to
+name = "ring"
+# The optional version constraint for the crate
+version = "*"
+# The SPDX expression for the license requirements of the crate
+expression = "MIT AND ISC AND OpenSSL"
+# One or more files in the crate's source used as the "source of truth" for
+# the license expression. If LGBT-start is specified, only these files will be
+# parsed for their license expressions, otherwise, the default ".rs" and
+# "Cargo.toml" files will be parsed as well, and this will simply add more
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 }
+]
+
+[bans]
+# Lint level for when multiple versions of the same crate are detected
+multiple-versions = "warn"
+# Lint level for when a crate version requirement is `*`
+wildcards = "allow"
+highlight = "all"
+# List of crates that are allowed
+allow = [
+    # { name = "some-crate", version = "=1.0.0" },
+]
+# List of crates to deny
+deny = [
+    # Each entry the name of a crate and a version range. If version is
+    # not specified, all versions will be matched.
+    # { name = "openssl", version = "*" },
+    # Deny old versions of security-sensitive crates
+    { name = "openssl", version = "<0.10.55" },
+    { name = "tokio", version = "<1.0" },
+]
+# Certain crates/versions that will be skipped when doing duplicate detection.
+skip = [
+    # { name = "winapi", version = "=0.3.9" },
+]
+# Similarly to `skip` allows you to skip certain crates from being checked
+skip-tree = [
+    # { name = "windows-sys", version = "=0.45.0", depth = 20 },
+]
+
+[sources]
+# Lint level for what to happen when a crate from a crate registry that is
+# not in the allow list is encountered
+unknown-registry = "warn"
+# Lint level for what to happen when a crate from a git repository that is not
+# in the allow list is encountered
+unknown-git = "warn"
+# List of URLs for allowed crate registries
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# List of URLs for allowed git repositories
+allow-git = [
+    # "https://github.com/rust-lang/cargo",
+]
