@@ -69,7 +69,7 @@ jobs:
         run: |
           # Start a minimal D-Bus session for testing
           export $(dbus-launch)
-          cargo test --verbose --lib
+          cargo test --verbose
         env:
           RUST_BACKTRACE: 1
 
@@ -281,7 +281,7 @@ jobs:
       - name: Install MSRV Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.60"  # From Cargo.toml rust-version
+          toolchain: "1.70"  # From Cargo.toml rust-version
 
       - name: Cache cargo dependencies
         uses: actions/cache@v4
@@ -300,7 +300,7 @@ jobs:
       - name: Test MSRV compatibility
         run: |
           export $(dbus-launch)
-          cargo test --verbose --lib
+          cargo test --verbose
         env:
           MEDIA_CONTROL_API_TOKEN: "test-token"
 
@@ -345,6 +345,6 @@ jobs:
         run: cargo check --verbose
 
       - name: Run basic tests
-        run: cargo test --verbose --lib
+        run: cargo test --verbose
         env:
           MEDIA_CONTROL_API_TOKEN: "test-token"

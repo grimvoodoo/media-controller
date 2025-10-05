@@ -11,7 +11,7 @@ documentation = "https://github.com/grimvoodoo/media-controller"
 readme = "readme.md"
 keywords = ["mpris", "media", "audio", "control", "linux"]
 categories = ["multimedia::audio", "api-bindings", "web-programming::http-server"]
-rust-version = "1.60"
+rust-version = "1.70"
 
 [[bin]]
 name = "media-controller"
