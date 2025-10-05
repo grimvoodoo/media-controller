@@ -1,0 +1,99 @@
+# cargo-deny configuration for supply chain security
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# Exclude dev-dependencies from the graph
+all-features = false
+no-default-features = false
+
+[output]
+feature-depth = 1
+
+[advisories]
+# The path where the advisory database is cloned/fetched into
+db-path = "~/.cargo/advisory-db"
+# The url(s) of the advisory databases to use
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# A list of advisory IDs to ignore
+ignore = [
+    # Unmaintained transitive dependencies - acceptable risk
+    "RUSTSEC-2024-0388", # derivative - transitive via zbus->souvlaki
+    "RUSTSEC-2024-0384", # instant - transitive via fastrand->futures-lite->async-fs->zbus->souvlaki
+]
+
+[licenses]
+# List of explicitly allowed licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Zlib",
+]
+# The confidence threshold for detecting a license from a license text
+confidence-threshold = 0.8
+# Allow 1 or more licenses on a per-crate basis
+exceptions = [
+    # Each entry is the crate and version constraint, and its specific allow list
+    # { allow = ["Zlib"], crate = "adler32" },
+]
+
+[[licenses.clarify]]
+# The name of the crate the clarification applies to
+crate = "ring"
+# The SPDX expression for the license requirements of the crate
+expression = "MIT AND ISC AND OpenSSL"
+# One or more files in the crate's source used as the "source of truth" for
+# the license expression
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 }
+]
+
+[licenses.private]
+# If true, ignores workspace crates that aren't published
+ignore = true
+
+[bans]
+# Lint level for when multiple versions of the same crate are detected
+multiple-versions = "warn"
+# Lint level for when a crate version requirement is `*`
+wildcards = "allow"
+highlight = "all"
+# List of crates that are allowed
+allow = [
+    # { crate = "some-crate@1.0.0", reason = "reason for allowing" },
+]
+# List of crates to deny
+deny = [
+    # Deny old versions of security-sensitive crates
+    { crate = "openssl@<0.10.55", reason = "old versions have security vulnerabilities" },
+    { crate = "tokio@<1.0", reason = "old versions have security and stability issues" },
+]
+# Certain crates/versions that will be skipped when doing duplicate detection
+skip = [
+    # { crate = "winapi@0.3.9", reason = "multiple versions needed for compatibility" },
+]
+# Similarly to `skip` allows you to skip certain crates from being checked
+skip-tree = [
+    # { crate = "windows-sys@0.45.0", depth = 20 },
+]
+
+[sources]
+# Lint level for what to happen when a crate from a crate registry that is
+# not in the allow list is encountered
+unknown-registry = "warn"
+# Lint level for what to happen when a crate from a git repository that is not
+# in the allow list is encountered
+unknown-git = "warn"
+# List of URLs for allowed crate registries
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# List of URLs for allowed git repositories
+allow-git = [
+    # "https://github.com/rust-lang/cargo",
+]

@@ -1,7 +1,21 @@
 [package]
 name = "media-controller"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+authors = ["Andrew Cleveland"]
+description = "HTTP service for controlling MPRIS media players and system volume on Linux"
+license = "MIT"
+repository = "https://github.com/grimvoodoo/media-controller"
+homepage = "https://github.com/grimvoodoo/media-controller"
+documentation = "https://github.com/grimvoodoo/media-controller"
+readme = "readme.md"
+keywords = ["mpris", "media", "audio", "control", "linux"]
+categories = ["multimedia::audio", "api-bindings", "web-programming::http-server"]
+rust-version = "1.70"
+
+[[bin]]
+name = "media-controller"
+path = "src/main.rs"
 
 [dependencies]
 actix-web = "4.11.0"

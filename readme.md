@@ -39,6 +39,8 @@ A Rust-based HTTP service for controlling media playback and system volume on Li
 
 ## Installation
 
+### Build from Source
+
 ```bash
 # Clone the repo
 git clone https://github.com/grimvoodoo/media-controller.git
@@ -53,23 +55,41 @@ cargo build --release
 sudo install -m 755 target/release/media-controller /usr/local/bin/media-controller
 ```
 
-Or install directly from crates.io:
+### Install from crates.io (Recommended)
 
 ```bash
-cargo install media-control-server
+# Install the binary
+cargo install media-controller
+
+# Run with environment variables
+MEDIA_CONTROL_API_TOKEN="your-secret-token" media-controller
+
+# Or with custom preferred player
+MEDIA_CONTROL_PREFERRED_PLAYER="firefox" \
+MEDIA_CONTROL_API_TOKEN="your-secret-token" media-controller
 ```
 
 ## Configuration
 
-### API Token
+### Environment Variables
 
-The service uses a bearer token for securing API calls. Set the `API_TOKEN` environment variable to your secret before starting the service.
+#### Required
+- `MEDIA_CONTROL_API_TOKEN`: Bearer token for API authentication (required)
+
+#### Optional  
+- `MEDIA_CONTROL_PREFERRED_PLAYER`: Preferred MPRIS player to control (default: "chromium")
+  - Examples: "chromium", "firefox", "spotify", "vlc"
+  - Case-insensitive substring matching
 
 ```bash
-export API_TOKEN="supersecret123"
+# Required
+export MEDIA_CONTROL_API_TOKEN="supersecret123"
+
+# Optional - prioritize Firefox instead of Chromium
+export MEDIA_CONTROL_PREFERRED_PLAYER="firefox"
 ```
 
-You can embed this in your systemd unit (see below) or load from an `EnvironmentFile`.
+You can embed these in your systemd unit (see below) or load from an `EnvironmentFile`.
 
 ### Systemd Service
 
@@ -82,7 +102,8 @@ After=network.target
 
 [Service]
 Type=simple
-Environment="API_TOKEN=supersecret123"
+Environment="MEDIA_CONTROL_API_TOKEN=supersecret123"
+Environment="MEDIA_CONTROL_PREFERRED_PLAYER=chromium"
 ExecStart=/usr/local/bin/media-controller
 Restart=on-failure
 RestartSec=5s
@@ -127,7 +148,7 @@ sudo systemctl enable --now media-controller
 If not using systemd, you can run directly:
 
 ```bash
-API_TOKEN="supersecret123" ./target/release/media-controller --bind 0.0.0.0:8080
+MEDIA_CONTROL_API_TOKEN="supersecret123" ./target/release/media-controller
 ```
 
 ### REST Endpoints

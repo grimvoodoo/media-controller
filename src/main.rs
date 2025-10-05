@@ -2,8 +2,8 @@ use actix_web::body::BoxBody;
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::error::ErrorUnauthorized;
 use actix_web::http::header;
-use actix_web::middleware::{Next, from_fn};
-use actix_web::{App, Error, HttpResponse, HttpServer, Responder, web};
+use actix_web::middleware::{from_fn, Next};
+use actix_web::{web, App, Error, HttpResponse, HttpServer, Responder};
 use mpris::{PlaybackStatus, Player, PlayerFinder};
 use serde::Serialize;
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, PlatformConfig};
@@ -31,6 +31,8 @@ struct Status {
     other_playback: Option<String>,
     // What title you last set
     title: Option<String>,
+    // Which player is being controlled (identity)
+    controlled_player: Option<String>,
 }
 
 #[actix_web::main]
@@ -54,14 +56,14 @@ async fn main() -> std::io::Result<()> {
 
     // Optional: log any hardware key events
     controls
-        .attach(|evt: MediaControlEvent| println!("media key: {:?}", evt))
+        .attach(|evt: MediaControlEvent| println!("media key: {evt:?}"))
         .unwrap();
 
     // 2) Set some initial metadata & playback state
     let initial_meta: MediaMetadata<'static> = MediaMetadata {
-        title: Some("Souvlaki Space Station".into()),
-        artist: Some("Slowdive".into()),
-        album: Some("Souvlaki".into()),
+        title: Some("Souvlaki Space Station"),
+        artist: Some("Slowdive"),
+        album: Some("Souvlaki"),
         ..Default::default()
     };
     let initial_pb = MediaPlayback::Paused { progress: None };
@@ -111,6 +113,13 @@ fn get_api_token() -> String {
     env::var("MEDIA_CONTROL_API_TOKEN").expect("must set MEDIA_CONTROL_API_TOKEN")
 }
 
+/// Read the preferred player from env var, defaulting to "chromium"
+fn get_preferred_player() -> String {
+    env::var("MEDIA_CONTROL_PREFERRED_PLAYER")
+        .unwrap_or_else(|_| "chromium".to_string())
+        .to_lowercase()
+}
+
 /// This middleware will run *before* every handler.
 async fn auth_middleware(
     req: ServiceRequest,
@@ -127,7 +136,7 @@ async fn auth_middleware(
         .headers()
         .get(header::AUTHORIZATION)
         .and_then(|h| h.to_str().ok())
-        .map(|val| val == format!("Bearer {}", expected))
+        .map(|val| val == format!("Bearer {expected}"))
         .unwrap_or(false);
 
     if authorized {
@@ -140,11 +149,76 @@ async fn auth_middleware(
     }
 }
 
-/// Helper: find the *currently active* MPRIS player, if any.
+/// Helper: find the best MPRIS player to control, prioritizing the preferred player.
 fn find_player() -> Option<Player> {
     let pf = PlayerFinder::new().ok()?;
     let all = pf.find_all().ok()?;
-    all.into_iter().find(|p| p.identity() != "My Player")
+    let preferred_player = get_preferred_player();
+
+    // Filter out our own "My Player" service
+    let external_players: Vec<_> = all
+        .into_iter()
+        .filter(|p| p.identity() != "My Player")
+        .collect();
+
+    if external_players.is_empty() {
+        println!("No external MPRIS players found");
+        return None;
+    }
+
+    // Find the best player based on priority
+    let mut selected_player = None;
+    let mut selection_reason = String::new();
+
+    // First priority: Look for the preferred player (default: chromium)
+    for player in &external_players {
+        if player.identity().to_lowercase().contains(&preferred_player) {
+            selected_player = Some(player);
+            selection_reason = format!(
+                "Found preferred player '{}': {}",
+                preferred_player,
+                player.identity()
+            );
+            break;
+        }
+    }
+
+    // If preferred is "chromium" and not found, try "chrome" as fallback
+    if selected_player.is_none() && preferred_player == "chromium" {
+        for player in &external_players {
+            if player.identity().to_lowercase().contains("chrome") {
+                selected_player = Some(player);
+                selection_reason = format!(
+                    "Found Chrome player as Chromium fallback: {}",
+                    player.identity()
+                );
+                break;
+            }
+        }
+    }
+
+    // Final fallback: Use the first available player
+    if selected_player.is_none() {
+        if let Some(fallback) = external_players.first() {
+            selected_player = Some(fallback);
+            selection_reason = format!(
+                "Using fallback player (preferred '{}' not found): {}",
+                preferred_player,
+                fallback.identity()
+            );
+        }
+    }
+
+    if let Some(player) = selected_player {
+        println!("{selection_reason}");
+        // Find the index and return the owned player
+        let identity = player.identity().to_string();
+        return external_players
+            .into_iter()
+            .find(|p| p.identity() == identity);
+    }
+
+    None
 }
 
 /// POST /play — update *your* MPRIS state and tell the active player to play
@@ -206,7 +280,7 @@ async fn toggle(state: web::Data<AppState>) -> impl Responder {
                 HttpResponse::Ok().body("playing")
             }
             Err(e) => {
-                eprintln!("Failed to get playback status: {}", e);
+                eprintln!("Failed to get playback status: {e}");
                 HttpResponse::InternalServerError().body("couldn't read status")
             }
         }
@@ -228,10 +302,8 @@ async fn volume_up(_state: web::Data<AppState>) -> impl Responder {
 
     match status {
         Ok(s) if s.success() => HttpResponse::Ok().body("system volume +5%"),
-        Ok(s) => HttpResponse::InternalServerError().body(format!("pactl exited with {}", s)),
-        Err(e) => {
-            HttpResponse::InternalServerError().body(format!("failed to launch pactl: {}", e))
-        }
+        Ok(s) => HttpResponse::InternalServerError().body(format!("pactl exited with {s}")),
+        Err(e) => HttpResponse::InternalServerError().body(format!("failed to launch pactl: {e}")),
     }
 }
 
@@ -243,10 +315,8 @@ async fn volume_down(_state: web::Data<AppState>) -> impl Responder {
 
     match status {
         Ok(s) if s.success() => HttpResponse::Ok().body("system volume -5%"),
-        Ok(s) => HttpResponse::InternalServerError().body(format!("pactl exited with {}", s)),
-        Err(e) => {
-            HttpResponse::InternalServerError().body(format!("failed to launch pactl: {}", e))
-        }
+        Ok(s) => HttpResponse::InternalServerError().body(format!("pactl exited with {s}")),
+        Err(e) => HttpResponse::InternalServerError().body(format!("failed to launch pactl: {e}")),
     }
 }
 
@@ -305,10 +375,14 @@ async fn status(state: web::Data<AppState>) -> impl Responder {
         let pb = state.copy_playback.lock().unwrap();
         format!("{pb:?}")
     };
-    // Ask the other player
-    let other_pb = find_player()
+    // Ask the other player and get its identity
+    let player = find_player();
+    let other_pb = player
+        .as_ref()
         .and_then(|p| p.get_playback_status().ok())
         .map(|s| format!("{s:?}"));
+    let controlled_player = player.as_ref().map(|p| p.identity().to_string());
+
     // Read your last‐set title
     let title = {
         let md = state.copy_meta.lock().unwrap();
@@ -319,6 +393,7 @@ async fn status(state: web::Data<AppState>) -> impl Responder {
         our_playback: our_pb,
         other_playback: other_pb,
         title,
+        controlled_player,
     };
     HttpResponse::Ok().json(resp)
 }
