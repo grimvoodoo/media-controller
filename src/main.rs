@@ -303,9 +303,7 @@ async fn volume_up(_state: web::Data<AppState>) -> impl Responder {
     match status {
         Ok(s) if s.success() => HttpResponse::Ok().body("system volume +5%"),
         Ok(s) => HttpResponse::InternalServerError().body(format!("pactl exited with {s}")),
-        Err(e) => {
-            HttpResponse::InternalServerError().body(format!("failed to launch pactl: {e}"))
-        }
+        Err(e) => HttpResponse::InternalServerError().body(format!("failed to launch pactl: {e}")),
     }
 }
 
@@ -318,9 +316,7 @@ async fn volume_down(_state: web::Data<AppState>) -> impl Responder {
     match status {
         Ok(s) if s.success() => HttpResponse::Ok().body("system volume -5%"),
         Ok(s) => HttpResponse::InternalServerError().body(format!("pactl exited with {s}")),
-        Err(e) => {
-            HttpResponse::InternalServerError().body(format!("failed to launch pactl: {e}"))
-        }
+        Err(e) => HttpResponse::InternalServerError().body(format!("failed to launch pactl: {e}")),
     }
 }
 
