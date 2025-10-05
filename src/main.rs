@@ -56,14 +56,14 @@ async fn main() -> std::io::Result<()> {
 
     // Optional: log any hardware key events
     controls
-        .attach(|evt: MediaControlEvent| println!("media key: {:?}", evt))
+        .attach(|evt: MediaControlEvent| println!("media key: {evt:?}"))
         .unwrap();
 
     // 2) Set some initial metadata & playback state
     let initial_meta: MediaMetadata<'static> = MediaMetadata {
-        title: Some("Souvlaki Space Station".into()),
-        artist: Some("Slowdive".into()),
-        album: Some("Souvlaki".into()),
+        title: Some("Souvlaki Space Station"),
+        artist: Some("Slowdive"),
+        album: Some("Souvlaki"),
         ..Default::default()
     };
     let initial_pb = MediaPlayback::Paused { progress: None };
@@ -136,7 +136,7 @@ async fn auth_middleware(
         .headers()
         .get(header::AUTHORIZATION)
         .and_then(|h| h.to_str().ok())
-        .map(|val| val == format!("Bearer {}", expected))
+        .map(|val| val == format!("Bearer {expected}"))
         .unwrap_or(false);
 
     if authorized {
@@ -210,7 +210,7 @@ fn find_player() -> Option<Player> {
     }
 
     if let Some(player) = selected_player {
-        println!("{}", selection_reason);
+        println!("{selection_reason}");
         // Find the index and return the owned player
         let identity = player.identity().to_string();
         return external_players
@@ -280,7 +280,7 @@ async fn toggle(state: web::Data<AppState>) -> impl Responder {
                 HttpResponse::Ok().body("playing")
             }
             Err(e) => {
-                eprintln!("Failed to get playback status: {}", e);
+                eprintln!("Failed to get playback status: {e}");
                 HttpResponse::InternalServerError().body("couldn't read status")
             }
         }
@@ -302,9 +302,9 @@ async fn volume_up(_state: web::Data<AppState>) -> impl Responder {
 
     match status {
         Ok(s) if s.success() => HttpResponse::Ok().body("system volume +5%"),
-        Ok(s) => HttpResponse::InternalServerError().body(format!("pactl exited with {}", s)),
+        Ok(s) => HttpResponse::InternalServerError().body(format!("pactl exited with {s}")),
         Err(e) => {
-            HttpResponse::InternalServerError().body(format!("failed to launch pactl: {}", e))
+            HttpResponse::InternalServerError().body(format!("failed to launch pactl: {e}"))
         }
     }
 }
@@ -317,9 +317,9 @@ async fn volume_down(_state: web::Data<AppState>) -> impl Responder {
 
     match status {
         Ok(s) if s.success() => HttpResponse::Ok().body("system volume -5%"),
-        Ok(s) => HttpResponse::InternalServerError().body(format!("pactl exited with {}", s)),
+        Ok(s) => HttpResponse::InternalServerError().body(format!("pactl exited with {s}")),
         Err(e) => {
-            HttpResponse::InternalServerError().body(format!("failed to launch pactl: {}", e))
+            HttpResponse::InternalServerError().body(format!("failed to launch pactl: {e}"))
         }
     }
 }
