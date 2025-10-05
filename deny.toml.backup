@@ -14,14 +14,20 @@ feature-depth = 1
 db-path = "~/.cargo/advisory-db"
 # The url(s) of the advisory databases to use
 db-urls = ["https://github.com/rustsec/advisory-db"]
+# Updated format for cargo-deny 0.18.5+
+severity-threshold = "low"  # deny all vulnerabilities
+unmaintained = "allow"      # allow unmaintained crates
+yanked = "warn"             # warn on yanked crates
 # A list of advisory IDs to ignore
 ignore = [
-    # Unmaintained transitive dependencies - acceptable risk
-    "RUSTSEC-2024-0388", # derivative - transitive via zbus->souvlaki
-    "RUSTSEC-2024-0384", # instant - transitive via fastrand->futures-lite->async-fs->zbus->souvlaki
+    # "RUSTSEC-0000-0000",
 ]
 
 [licenses]
+# The confidence threshold for detecting a license from a license text.
+confidence-threshold = 0.8
+# Multiple license handling - new format
+multiple = "warn"  # warn when multiple licenses are detected
 # List of explicitly allowed licenses
 allow = [
     "MIT",
@@ -33,31 +39,47 @@ allow = [
     "Unicode-DFS-2016",
     "CC0-1.0",
     "MPL-2.0",
-    "Unicode-3.0",
-    "Zlib",
 ]
-# The confidence threshold for detecting a license from a license text
-confidence-threshold = 0.8
+# List of explicitly disallowed licenses - moved to banned section
+private = { ignore = true }  # Allow private/unlicensed dependencies
+
+# Banned licenses
+[[licenses.banned]]
+name = "GPL-2.0"
+use-instead = "Use Apache-2.0, MIT, or BSD licenses instead"
+
+[[licenses.banned]]
+name = "GPL-3.0"
+use-instead = "Use Apache-2.0, MIT, or BSD licenses instead"
+
+[[licenses.banned]]
+name = "AGPL-1.0"
+use-instead = "Use Apache-2.0, MIT, or BSD licenses instead"
+
+[[licenses.banned]]
+name = "AGPL-3.0"
+use-instead = "Use Apache-2.0, MIT, or BSD licenses instead"
+
 # Allow 1 or more licenses on a per-crate basis
 exceptions = [
-    # Each entry is the crate and version constraint, and its specific allow list
-    # { allow = ["Zlib"], crate = "adler32" },
+    # Each entry is the crate and version constraint, and its the license
+    # { allow = ["Zlib"], name = "adler32", version = "*" },
 ]
 
 [[licenses.clarify]]
 # The name of the crate the clarification applies to
-crate = "ring"
+name = "ring"
+# The optional version constraint for the crate
+version = "*"
 # The SPDX expression for the license requirements of the crate
 expression = "MIT AND ISC AND OpenSSL"
 # One or more files in the crate's source used as the "source of truth" for
-# the license expression
+# the license expression. If LGBT-start is specified, only these files will be
+# parsed for their license expressions, otherwise, the default ".rs" and
+# "Cargo.toml" files will be parsed as well, and this will simply add more
 license-files = [
     { path = "LICENSE", hash = 0xbd0eed23 }
 ]
-
-[licenses.private]
-# If true, ignores workspace crates that aren't published
-ignore = true
 
 [bans]
 # Lint level for when multiple versions of the same crate are detected
@@ -67,21 +89,24 @@ wildcards = "allow"
 highlight = "all"
 # List of crates that are allowed
 allow = [
-    # { crate = "some-crate@1.0.0", reason = "reason for allowing" },
+    # { name = "some-crate", version = "=1.0.0" },
 ]
 # List of crates to deny
 deny = [
+    # Each entry the name of a crate and a version range. If version is
+    # not specified, all versions will be matched.
+    # { name = "openssl", version = "*" },
     # Deny old versions of security-sensitive crates
-    { crate = "openssl@<0.10.55", reason = "old versions have security vulnerabilities" },
-    { crate = "tokio@<1.0", reason = "old versions have security and stability issues" },
+    { name = "openssl", version = "<0.10.55" },
+    { name = "tokio", version = "<1.0" },
 ]
-# Certain crates/versions that will be skipped when doing duplicate detection
+# Certain crates/versions that will be skipped when doing duplicate detection.
 skip = [
-    # { crate = "winapi@0.3.9", reason = "multiple versions needed for compatibility" },
+    # { name = "winapi", version = "=0.3.9" },
 ]
 # Similarly to `skip` allows you to skip certain crates from being checked
 skip-tree = [
-    # { crate = "windows-sys@0.45.0", depth = 20 },
+    # { name = "windows-sys", version = "=0.45.0", depth = 20 },
 ]
 
 [sources]
