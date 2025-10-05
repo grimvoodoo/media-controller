@@ -1,28 +1,22 @@
 name: Continuous Integration
-
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
-
+    branches: [main, develop]
 permissions:
   contents: read
   actions: read
   security-events: write
-
 env:
   CARGO_TERM_COLOR: always
-
 jobs:
   test:
     name: Run Tests and Build
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -36,12 +30,11 @@ jobs:
             libxkbcommon-dev \
             dbus \
             dbus-x11
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      # - name: Install Rust toolchain
+      #   uses: dtolnay/rust-toolchain@stable
+      #   with:
+      #     components: rustfmt, clippy
       - name: Cache cargo dependencies
         uses: actions/cache@v4
         with:
@@ -52,19 +45,14 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-
       - name: Check code formatting
         run: cargo fmt --check
-
       - name: Run clippy linting
         run: cargo clippy --all-targets --all-features -- -D warnings
-
       - name: Build project
         run: cargo build --verbose
-
       - name: Build release binary
         run: cargo build --release --verbose
-
       - name: Run unit tests
         run: |
           # Start a minimal D-Bus session for testing
@@ -72,7 +60,6 @@ jobs:
           cargo test --verbose
         env:
           RUST_BACKTRACE: 1
-
       - name: Run integration tests
         run: |
           # Start D-Bus session for MPRIS integration tests
@@ -83,7 +70,6 @@ jobs:
           # Mock environment variables for testing
           MEDIA_CONTROL_API_TOKEN: "test-token-for-ci"
           MEDIA_CONTROL_PREFERRED_PLAYER: "test-player"
-
       - name: Test binary execution
         run: |
           # Test that the binary can start and respond to basic checks
@@ -91,18 +77,14 @@ jobs:
           timeout 5s ./target/release/media-controller || echo "Binary startup test completed"
         env:
           MEDIA_CONTROL_API_TOKEN: "test-token"
-
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
       - name: Cache cargo dependencies
         uses: actions/cache@v4
         with:
@@ -112,38 +94,29 @@ jobs:
           key: ${{ runner.os }}-cargo-audit-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-audit-
-
       - name: Install cargo-audit
         run: cargo install cargo-audit
-
       - name: Run cargo audit
         run: cargo audit
-
       - name: Check for known vulnerabilities
         run: cargo audit --deny warnings
-
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
-
   trivy-scan:
     name: Trivy Security Scan
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Run Trivy filesystem scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -152,13 +125,11 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH,MEDIUM'
-
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
-
       - name: Run Trivy filesystem scanner (table output)
         uses: aquasecurity/trivy-action@master
         with:
@@ -167,18 +138,14 @@ jobs:
           format: 'table'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
-
   supply-chain-security:
     name: Supply Chain Security
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
       - name: Cache cargo dependencies
         uses: actions/cache@v4
         with:
@@ -188,29 +155,22 @@ jobs:
           key: ${{ runner.os }}-cargo-deny-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-deny-
-
       - name: Install cargo-deny
         run: cargo install cargo-deny
-
       - name: Check dependencies for security advisories
         run: cargo deny check advisories
-
       - name: Check for license compliance
         run: cargo deny check licenses
-
       - name: Check for banned dependencies
         run: cargo deny check bans
-
   code-quality:
     name: Code Quality Analysis
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -222,12 +182,10 @@ jobs:
             libx11-dev \
             libxtst-dev \
             libxkbcommon-dev
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
-
       - name: Cache cargo dependencies
         uses: actions/cache@v4
         with:
@@ -238,11 +196,9 @@ jobs:
           key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-coverage-
-
       - name: Install coverage tools
         run: |
           cargo install cargo-llvm-cov || true
-
       - name: Run tests with coverage
         run: |
           export $(dbus-launch)
@@ -250,22 +206,18 @@ jobs:
         env:
           RUST_BACKTRACE: 1
           MEDIA_CONTROL_API_TOKEN: "test-token-for-coverage"
-
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           files: coverage.lcov
           fail_ci_if_error: false
           verbose: true
-
   msrv-check:
     name: Minimum Supported Rust Version
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -277,19 +229,15 @@ jobs:
             libx11-dev \
             libxtst-dev \
             libxkbcommon-dev
-
       - name: Update rustup
         run: rustup self update
-
       - name: Install MSRV Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.70"  # From Cargo.toml rust-version
+          toolchain: "1.70" # From Cargo.toml rust-version
           components: rustfmt, clippy
-
       - name: Set toolchain override
         run: rustup override set 1.70
-
       - name: Cache cargo dependencies
         uses: actions/cache@v4
         with:
@@ -300,17 +248,14 @@ jobs:
           key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-msrv-
-
       - name: Check MSRV compilation
         run: cargo check --verbose
-
       - name: Test MSRV compatibility
         run: |
           export $(dbus-launch)
           cargo test --verbose
         env:
           MEDIA_CONTROL_API_TOKEN: "test-token"
-
   cross-platform:
     name: Cross-platform Build Check
     strategy:
@@ -321,22 +266,17 @@ jobs:
             deps: |
               sudo apt-get update
               sudo apt-get install -y libdbus-1-dev pkg-config build-essential libudev-dev libx11-dev libxtst-dev libxkbcommon-dev
-          - os: macos-latest  
+          - os: macos-latest
             deps: |
               brew install dbus pkg-config
-    
     runs-on: ${{ matrix.os }}
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install system dependencies
         run: ${{ matrix.deps }}
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
       - name: Cache cargo dependencies
         uses: actions/cache@v4
         with:
@@ -347,11 +287,10 @@ jobs:
           key: ${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ matrix.os }}-cargo-
-
       - name: Check compilation
         run: cargo check --verbose
-
       - name: Run basic tests
         run: cargo test --verbose
         env:
           MEDIA_CONTROL_API_TOKEN: "test-token"
+
